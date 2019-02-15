@@ -33,6 +33,7 @@ public class WebWorker implements Runnable
 String fileName;
 private Socket socket;
 
+
 /**
 * Constructor: must have a valid open socket
 **/
@@ -49,22 +50,30 @@ public WebWorker(Socket s)
 **/
 public void run()
 {
+	String urlAdd;
+	String contentType;
+
     System.err.println("Handling connection...");
     try
     {
         InputStream  is = socket.getInputStream();
         OutputStream os = socket.getOutputStream();
-        String urlAdd = readHTTPRequest( is );
+        urlAdd = readHTTPRequest( is );
         System.out.println( urlAddress );
-        writeHTTPHeader( os , "text/html" , urlAdd );
-        if ( urlAdd.equals( null ) )
-        {
-            os.write("<html><head></head><body>\n".getBytes());
-            os.write("<h3>My web server works!</h3>\n".getBytes());
-            os.write("</body></html>\n".getBytes());
-        }//end if
-        else
-            writeContent( os, urlAdd );
+        
+		if(urlAdd.contains(".gif"))
+			contentType = "image/gif";
+		else if(urlAdd.contains(".jpg"))
+			contentType = "image/jpg";
+		else if(urlAdd.contains(".png"))
+			contentType = "image/png";
+		else if(urlAdd.contains(".ico"))
+			contentType = "image/x-icon";
+		else
+			contentType = "text/html";
+        
+		writeHTTPHeader(os,contentType,urlAdd);
+		writeContent(os,contentType,urlAdd);
         os.flush();
         socket.close();
     } catch ( Exception e )
@@ -127,14 +136,14 @@ private void writeHTTPHeader( OutputStream os , String contentType , String urlA
     os.write( ( dtForm.format( dt ) ).getBytes() );
     os.write( "\n".getBytes() );
     os.write( "Server: Guillermo's very own server\n".getBytes() );
-    //os.write( "Last-Modified: Wed, 08 Jan 2003 23:11:55 GMT\n".getBytes() );
-    //os.write( "Content-Length: 438\n".getBytes() );
     os.write( "Connection: close\n".getBytes() );
     os.write( "Content-Type: ".getBytes() );
     os.write( contentType.getBytes() );
     os.write( "\n\n".getBytes() ); // HTTP header ends with 2 newlines
     return;
 }//end writeHTTPHeader
+
+
 
 private void writeHTTP404Error(OutputStream os, String contentType, String urlAddress) throws Exception
 {
@@ -163,37 +172,48 @@ private void writeHTTP404Error(OutputStream os, String contentType, String urlAd
 * be done after the HTTP header has been written out.
 * @param os is the OutputStream object to write to
 **/
-private void writeContent(OutputStream os, String urlAdd) throws Exception
+private void writeContent(OutputStream os, String contentType, String urlAdd) throws Exception
 {
-   Date dt = new Date();
+	Date dt = new Date();
 	DateFormat dtForm = DateFormat.getDateTimeInstance();
 	dtForm.setTimeZone(TimeZone.getTimeZone( "GMT" ));
 	String dataContent = "";
 	String urlAdrsCopy = "." + urlAdd.substring( 0 , urlAdd.length( ) );
 	String date = dtForm.format( dt );
-   
-	try
-   {
-		File url = new File( urlAdrsCopy );
-		FileReader urlRead = new FileReader( url );
-		BufferedReader urlBuffer = new BufferedReader( urlRead );
-		while( ( dataContent = urlBuffer.readLine() ) != null )
-      {
-			os.write( dataContent.getBytes() );
-			os.write( "\n".getBytes());
-			if ( dataContent.contains( "<cs371date>" ) )
-         {
-				os.write( date.getBytes() );
-				os.write( "\n".getBytes() );
-         }//end if
-         if ( dataContent.contains( "<cs371server>" ) )
-			os.write( "Guillermo's Server ID string\n".getBytes() );
-		}//end while
-		
-	} catch(FileNotFoundException e)
-   {
-		writeHTTP404Error( os , "text/html" , urlAdd );
-	}//end try/catch
+	
+	if(contentType.equals("test/html"))
+	{
+		try
+		{
+			File url = new File( urlAdrsCopy );
+			FileReader urlRead = new FileReader( url );
+			BufferedReader urlBuffer = new BufferedReader( urlRead );
+			while( ( dataContent = urlBuffer.readLine() ) != null )
+			{
+				os.write( dataContent.getBytes() );
+				os.write( "\n".getBytes());
+				if ( dataContent.contains( "<cs371date>" ) )
+				{
+					os.write( date.getBytes() );
+					os.write( "\n".getBytes() );
+				}//end if
+				if ( dataContent.contains( "<cs371server>" ) )
+					os.write( "Guillermo's Server ID string\n".getBytes() );
+			}//end while
+			
+		} catch(FileNotFoundException e)
+		{
+			writeHTTP404Error( os , "text/html" , urlAdd );
+		}//end try/catch
+	}//end if
+	else if(contentType.contains("image"))
+	{
+		FileInputStream imageReader = new FileInputStream(in);
+		byte imgArray[] = new byte[(int)in.length()];
+		imageReader.read(imgArray);
+		DataOutputStream imgOut = new DataOutputStream(os);
+	I	imageOut.write(imgArray);
+	}//end else if
 }//end writeContent
 
 } // end class
